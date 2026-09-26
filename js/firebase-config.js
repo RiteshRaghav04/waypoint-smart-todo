@@ -16,13 +16,15 @@
    ========================================================== */
 
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyCz87sgwcoTU8v4XUW02wqgU2zMtvwyg4c",
+  authDomain: "waypoint-todo.firebaseapp.com",
+  projectId: "waypoint-todo",
+  storageBucket: "waypoint-todo.firebasestorage.app",
+  messagingSenderId: "223657185540",
+  appId: "1:223657185540:web:f734d3cfe0ac00579e0051",
+  measurementId: "G-7BDB46FDNE"
 };
+
 
 // Leave this as-is — app.js checks this to know whether you've filled in
 // real keys yet, and falls back to local-only mode if not.
