@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint — Smart To-Do</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧭</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<!-- Firebase: free Auth + Firestore database + Hosting. Fill in js/firebase-config.js -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+</head>
+<body data-theme="light">
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <button class="icon-btn" id="menuToggle" aria-label="Toggle navigation" title="Menu">
+    <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <div class="brand">
+    <span class="brand-mark">🧭</span>
+    <span class="brand-name">Waypoint</span>
+  </div>
+
+  <div class="searchwrap">
+    <svg viewBox="0 0 24 24" class="search-icon"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input type="text" id="searchInput" placeholder="Search tasks, notes, categories…">
+  </div>
+
+  <div class="topbar-actions">
+    <button class="icon-btn" id="voiceBtn" title="Add task by voice">
+      <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v4M8 23h8"/></svg>
+    </button>
+    <button class="icon-btn" id="themeToggle" title="Toggle light / dark">
+      <svg viewBox="0 0 24 24" id="themeIcon"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button class="icon-btn" id="notifBtn" title="Enable reminders">
+      <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="dot" id="notifDot"></span>
+    </button>
+    <div class="avatar" id="userChip" title="Account">
+      <span id="userInitial">G</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="account-card" id="accountCard">
+      <div class="account-avatar"><span id="accountInitial">G</span></div>
+      <div class="account-info">
+        <strong id="accountName">Guest</strong>
+        <small id="accountSub">Working locally · not signed in</small>
+      </div>
+    </div>
+    <button class="account-action" id="authBtn">Sign in / Create account</button>
+
+    <nav class="filters">
+      <p class="nav-label">Views</p>
+      <button class="nav-item active" data-filter="all"><span>📋</span>All tasks<em id="count-all">0</em></button>
+      <button class="nav-item" data-filter="today"><span>☀️</span>Today<em id="count-today">0</em></button>
+      <button class="nav-item" data-filter="pending"><span>🕓</span>Pending<em id="count-pending">0</em></button>
+      <button class="nav-item" data-filter="overdue"><span>🔴</span>Overdue<em id="count-overdue">0</em></button>
+      <button class="nav-item" data-filter="completed"><span>✅</span>Completed<em id="count-completed">0</em></button>
+      <button class="nav-item" data-filter="archived"><span>🗃️</span>Archive<em id="count-archived">0</em></button>
+    </nav>
+
+    <nav class="filters" id="categoryNav">
+      <p class="nav-label">Categories</p>
+      <!-- populated by JS -->
+    </nav>
+    <button class="add-cat-btn" id="addCategoryBtn">+ New category</button>
+
+    <nav class="filters" id="goalsNav">
+      <p class="nav-label">Goals</p>
+    </nav>
+    <button class="add-cat-btn" id="addGoalBtn">+ New goal</button>
+
+    <div class="sidebar-footer">
+      <button class="ghost-btn" id="exportBtn">⭱ Export data</button>
+      <label class="ghost-btn" for="importInput">⭳ Import data</label>
+      <input type="file" id="importInput" accept="application/json" hidden>
+    </div>
+  </aside>
+
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- Dashboard -->
+    <section class="dashboard" id="dashboard">
+      <div class="stat-card">
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">Total tasks</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="statCompleted">0</span>
+        <span class="stat-label">Completed</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="statPending">0</span>
+        <span class="stat-label">Pending</span>
+      </div>
+      <div class="stat-card warn">
+        <span class="stat-num" id="statOverdue">0</span>
+        <span class="stat-label">Overdue</span>
+      </div>
+      <div class="stat-card progress-card">
+        <div class="progress-ring-wrap">
+          <svg viewBox="0 0 64 64" class="progress-ring">
+            <circle cx="32" cy="32" r="27" class="ring-bg"/>
+            <circle cx="32" cy="32" r="27" class="ring-fg" id="ringFg"/>
+          </svg>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+        <span class="stat-label">Progress</span>
+      </div>
+    </section>
+
+    <!-- Toolbar -->
+    <section class="toolbar">
+      <div class="toolbar-left">
+        <h1 id="viewTitle">All tasks</h1>
+        <span class="toolbar-sub" id="viewSub">Everything on your plate</span>
+      </div>
+      <div class="toolbar-right">
+        <select id="sortSelect" title="Sort">
+          <option value="smart">Sort: Smart</option>
+          <option value="due">Sort: Due date</option>
+          <option value="priority">Sort: Priority</option>
+          <option value="created">Sort: Newest</option>
+          <option value="alpha">Sort: A–Z</option>
+        </select>
+        <select id="priorityFilter" title="Filter priority">
+          <option value="all">Any priority</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button class="primary-btn" id="newTaskBtn">+ Add task</button>
+      </div>
+    </section>
+
+    <!-- Task list -->
+    <section class="task-list" id="taskList">
+      <!-- rendered by JS -->
+    </section>
+
+    <div class="empty-state" id="emptyState" hidden>
+      <span class="empty-emoji">🧭</span>
+      <h3>Nothing here yet</h3>
+      <p id="emptyText">Add your first task to start mapping out your day.</p>
+      <button class="primary-btn" id="emptyAddBtn">+ Add task</button>
+    </div>
+  </main>
+</div>
+
+<!-- ============ TASK MODAL ============ -->
+<div class="modal-backdrop" id="taskModalBackdrop">
+  <div class="modal" id="taskModal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="modalTitle">New task</h2>
+      <button class="icon-btn" id="closeModal">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <label class="field">
+        <span>Title</span>
+        <input type="text" id="taskTitle" placeholder="e.g. Finish the quarterly report" maxlength="120">
+      </label>
+
+      <label class="field">
+        <span>Description</span>
+        <textarea id="taskDesc" rows="2" placeholder="Any extra detail worth remembering"></textarea>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Due date</span>
+          <input type="date" id="taskDate">
+        </label>
+        <label class="field">
+          <span>Due time</span>
+          <input type="time" id="taskTime">
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Priority</span>
+          <div class="segmented" id="prioritySeg">
+            <button type="button" data-value="low" class="seg low">Low</button>
+            <button type="button" data-value="medium" class="seg medium active">Medium</button>
+            <button type="button" data-value="high" class="seg high">High</button>
+          </div>
+        </label>
+        <label class="field">
+          <span>Remind me</span>
+          <select id="taskReminder">
+            <option value="0">At due time</option>
+            <option value="10">10 minutes before</option>
+            <option value="30">30 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+            <option value="none">No reminder</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Category</span>
+          <select id="taskCategory"></select>
+        </label>
+        <label class="field">
+          <span>Repeats</span>
+          <select id="taskRecurrence">
+            <option value="none">Doesn't repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Link to goal</span>
+        <select id="taskGoal">
+          <option value="">No goal</option>
+        </select>
+      </label>
+
+      <div class="field">
+        <span>Checklist / subtasks</span>
+        <div id="subtaskList" class="subtask-list"></div>
+        <div class="subtask-add">
+          <input type="text" id="subtaskInput" placeholder="Add a step and press Enter">
+          <button type="button" id="subtaskAddBtn">Add</button>
+        </div>
+        <button type="button" class="ghost-btn small" id="aiBreakdownBtn">🧠 Break this task down for me</button>
+      </div>
+
+      <p class="smart-hint" id="smartHint"></p>
+    </div>
+
+    <div class="modal-foot">
+      <button class="ghost-btn" id="deleteTaskBtn">Delete</button>
+      <div class="modal-foot-right">
+        <button class="ghost-btn" id="cancelTaskBtn">Cancel</button>
+        <button class="primary-btn" id="saveTaskBtn">Save task</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CATEGORY MODAL ============ -->
+<div class="modal-backdrop" id="catModalBackdrop">
+  <div class="modal small">
+    <div class="modal-head">
+      <h2>New category</h2>
+      <button class="icon-btn" id="closeCatModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span>Name</span>
+        <input type="text" id="catName" placeholder="e.g. Fitness" maxlength="24">
+      </label>
+      <label class="field">
+        <span>Color</span>
+        <div class="color-row" id="colorRow"></div>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-foot-right">
+        <button class="ghost-btn" id="cancelCatBtn">Cancel</button>
+        <button class="primary-btn" id="saveCatBtn">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GOAL MODAL ============ -->
+<div class="modal-backdrop" id="goalModalBackdrop">
+  <div class="modal small">
+    <div class="modal-head">
+      <h2>New goal</h2>
+      <button class="icon-btn" id="closeGoalModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span>Goal</span>
+        <input type="text" id="goalName" placeholder="e.g. Launch the new website" maxlength="60">
+      </label>
+      <label class="field">
+        <span>Target date (optional)</span>
+        <input type="date" id="goalDate">
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-foot-right">
+        <button class="ghost-btn" id="cancelGoalBtn">Cancel</button>
+        <button class="primary-btn" id="saveGoalBtn">Create goal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal-backdrop" id="authModalBackdrop">
+  <div class="modal small">
+    <div class="modal-head">
+      <h2 id="authTitle">Sign in</h2>
+      <button class="icon-btn" id="closeAuthModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="smart-hint" id="authCloudHint"></p>
+
+      <div class="segmented" id="authModeSeg">
+        <button type="button" data-mode="signin" class="seg active">Sign in</button>
+        <button type="button" data-mode="signup" class="seg">Create account</button>
+      </div>
+
+      <label class="field" id="authNameField">
+        <span>Name</span>
+        <input type="text" id="authName" placeholder="Your name">
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="authEmail" placeholder="you@example.com">
+      </label>
+      <label class="field" id="authPasswordField">
+        <span>Password</span>
+        <input type="password" id="authPassword" placeholder="At least 6 characters">
+      </label>
+      <p class="smart-hint" id="authError" style="background:var(--high-tint); color:var(--high); display:none;"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="signOutBtn" hidden>Sign out</button>
+      <div class="modal-foot-right">
+        <button class="ghost-btn" id="cancelAuthBtn">Cancel</button>
+        <button class="primary-btn" id="saveAuthBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
